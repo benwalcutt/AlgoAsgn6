@@ -13,6 +13,7 @@ class Vertex {
 	
 	public:
 		int name;
+		int connector;
 		
 		int get_dist() {
 			return dist_to_source;
@@ -32,6 +33,7 @@ class Vertex {
 		Vertex() {
 			dist_to_source = INFINITY;
 			assigned = false;
+			int connector = 0;
 		}
 };
 
@@ -42,6 +44,7 @@ class Edge {
 	public:
 		Vertex A;
 		Vertex B;
+		bool used;
 		
 		int get_weight() {
 			return weight;
@@ -55,7 +58,7 @@ class Edge {
 
 void make_heap(Vertex * A, int size);
 void adjusting_down(int node, Vertex * A, int size);
-int find_path(Vertex * ver, Edge * edg, int source, int dest, int num_of_edges);
+int find_path(Vertex * ver, Edge * edg, Vertex * pri_q, int source, int dest, int num_of_edges);
 void swap_ver(Vertex * A, int node1, int node2);
 
 void make_heap(Vertex * A, int size) {
@@ -126,20 +129,93 @@ void swap_ver(Vertex * A, int node1, int node2) {
 		A[node2].set_assigned(false);
 }
 
-int find_path(Vertex * ver, Edge * edg, int source, int dest, int num_of_comps) {
+int find_path(Vertex * ver, Edge * edg, Vertex * pri_q, int source, int dest, int num_of_comps, int num_of_edges) {
+	int base_vertex = 0;
+	int search_vertex = 0;
+	int temp_dist = 0;	
+	int temp_count = num_of_comps;
 	
-	ver[source + 1].set_dist(0);
-	make_heap(ver, num_of_comps);
-	swap_ver(ver, 1, num_of_comps);
-	make_heap(ver, num_of_comps - 1);
-	return 0;
+	// set source equal to 0 and assigned for vertex and pri_q
+	ver[source].set_dist(0);
+	ver[source].set_assigned(true);
+	pri_q[source + 1].set_dist(0);
+	pri_q[source + 1].set_assigned(true);
+	
+	// initialize base_vertex which will change
+	base_vertex = source;
+	
+	// remove source from pri_q
+	make_heap(pri_q, num_of_comps);
+	swap_ver(pri_q, 1, num_of_comps);
+	num_of_comps--;
+	// loop while dest is not assigned
+	while (!(ver[dest].get_assigned())) {
+		// loop through edges to find one with base vertex as a vertex
+		for (int i = 0; i < num_of_edges; i++) {
+			if (edg[i].A.name == base_vertex && !(edg[i].B.get_assigned())) {
+				//found an edge with a vertex that is the base
+				// search through pri_q to find where the connecting vertex is located
+				search_vertex = edg[i].B.name;
+				for (int j = 1; j <= num_of_comps; j++) {
+					if (pri_q[j].name == search_vertex) {
+						// found the vertex in the pri_q by name
+						// compare distance by distance already discovered
+						temp_dist = edg[i].get_weight() + ver[base_vertex].get_dist();
+						if (temp_dist < pri_q[j].get_dist()) {
+							// newly discovered distance is shorter so update
+							pri_q[j].set_dist(temp_dist);
+							pri_q[j].connector = base_vertex;
+						} // end temp_dist if
+					} // end pri_q name and search_vertex if
+				} // end search through pri_q
+			} // end if a.name is base vertex
+			
+			else if (edg[i].B.name == base_vertex && !(edg[i].A.get_assigned())) {
+				//found an edge with a vertex that is the base
+				// search through pri_q to find where the connecting vertex is located
+				search_vertex = edg[i].A.name;
+				for (int j = 1; j <= num_of_comps; j++) {
+					if (pri_q[j].name == search_vertex) {
+						// found the vertex in the pri_q by name
+						// compare distance by distance already discovered
+						temp_dist = edg[i].get_weight() + ver[base_vertex].get_dist();
+						if (temp_dist < pri_q[j].get_dist()) {
+							// newly discovered distance is shorter so update
+							pri_q[j].set_dist(temp_dist);
+							pri_q[j].connector = base_vertex;
+						} // end temp_dist if
+						else {
+						}
+					} // end pri_q name and search_vertex if
+				} // end search through pri_q
+			} // end if b.name is base vertex
+			
+		} // end edge loop
+		
+		// found all the newly discovered paths so we need make heap again which will place the lowest distance at the top
+		make_heap(pri_q, num_of_comps);
+		
+
+		// swap so lowest becomes the last
+		swap_ver(pri_q, 1, num_of_comps);
+		// update the Vertex table to show the distance and set assigned
+		ver[pri_q[num_of_comps].name].set_dist(pri_q[num_of_comps].get_dist());
+		ver[pri_q[num_of_comps].name].set_assigned(true);
+		// remove the last element of the pri_q
+		base_vertex = pri_q[num_of_comps].name;
+		num_of_comps--;
+	} // end while
+	return ver[dest].get_dist();
 }
 
 int main() {
 	Vertex * V;
 	Edge * E;
+	Vertex * Q;
 	
 	int num_of_cases = 0;
+	int case_counter = 1;
+	int result = 0;
 	
 	int num_of_comps = 0;
 	int num_of_cables = 0;
@@ -153,20 +229,22 @@ int main() {
 	cin >> num_of_cases;
 	cin.ignore();
 	
-	while (num_of_cases-- != 0) {
+	while (case_counter <= num_of_cases) {
 		cin >> num_of_comps;
 		cin.ignore();
 		
-		V = new Vertex[num_of_comps + 1];
+		V = new Vertex[num_of_comps];
+		Q = new Vertex[num_of_comps + 1];
 		
-		for (int i = 1; i <= num_of_comps; i++) {
+		for (int i = 0; i < num_of_comps; i++) {
 			V[i].name = i;
+			Q[i+1].name = i;
 		}
 		
 		cin >> num_of_cables;
 		cin.ignore();
 		
-		E = new Edge[num_of_cables + 1];
+		E = new Edge[num_of_cables];
 		
 		cin >> source_comp;
 		cin.ignore();
@@ -177,36 +255,38 @@ int main() {
 		int counter = num_of_cables;
 		
 		while (counter != 0) {
+			counter--;
 			cin >> ver_A;
 			cin.ignore();
+			
 			cin >> ver_B;
 			cin.ignore();
+			
 			cin >> weight;
 			cin.ignore();
 			
 			E[counter].A.name = ver_A;
 			E[counter].B.name = ver_B;
 			E[counter].set_weight(weight);
+			E[counter].used = false;
 			
-			counter--;
+
+		} // end little while
+
+		result = find_path(V, E, Q, source_comp, dest_comp, num_of_comps, num_of_cables);
+		
+		if (result != INFINITY) {
+			cout << "Case #" << case_counter << ": " << result << endl;
 		}
-		
-		make_heap(V, num_of_comps);
-//		for (int j = 1; j <= num_of_comps; j++) {
-//			cout << "V[" << j << "]: " << V[j].name << endl;
-//		}
-		find_path(V, E, source_comp, dest_comp, num_of_comps);
-		
-//		for (int j = 1; j <= num_of_comps; j++) {
-//			cout << "V[" << j << "]: " << V[j].name << endl;
-//		}
+		else {
+			cout << "Case #" << case_counter << ": unreachable" << endl;
+		}
+		case_counter++;
 		
 		delete[] V;
 		delete[] E;
+		delete[] Q;
 		
-	}
-	
-	
-	
+	} // end big while
 	return 0;
 }
